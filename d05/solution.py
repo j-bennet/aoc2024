@@ -23,8 +23,9 @@ def get_data(filename="input.txt"):
 
 
 class RuleGraph:
-    def __init__(self, rules):
+    def __init__(self, rules, topo):
         self.rules = rules
+        self.topo = set(topo)
         self.g = {}
         self.build_graph()
         self.correct_order = self.traverse()
@@ -32,6 +33,8 @@ class RuleGraph:
 
     def build_graph(self):
         for parent, child in self.rules:
+            if parent not in self.topo or child not in self.topo:
+                continue
             if parent not in self.g:
                 self.g[parent] = set()
             if child not in self.g:
@@ -46,15 +49,6 @@ class RuleGraph:
                 return False
             max_seen_position = self.positions[node]
         return True
-
-    def middle_sum(self, updates: list[list[int]]) -> int:
-        result = 0
-        for update in updates:
-            if self.check_topo(update):
-                m = len(update) // 2
-                # print(f"{update=}, {m=}, {update[m]=}")
-                result += update[m]
-        return result
 
     def traverse(self):
         path = []
@@ -78,10 +72,15 @@ class RuleGraph:
 def part1(data):
     """Part 1"""
     rules, updates = data
-    g = RuleGraph(rules)
-    # print(g)
-    # print(g.correct_order)
-    result = g.middle_sum(updates)
+    result = 0
+    for update in updates:
+        g = RuleGraph(rules, update)
+        # print(g)
+        # print(g.correct_order)
+        # print("-" * 80)
+        if g.check_topo(update):
+            m = len(update) // 2
+            result += update[m]
     return result
 
 

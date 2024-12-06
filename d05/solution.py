@@ -50,6 +50,10 @@ class RuleGraph:
             max_seen_position = self.positions[node]
         return True
 
+    def reorder(self, topo: list[int]) -> list[int]:
+        """Reorder the list to make it topologically sorted"""
+        return sorted(topo, key=lambda x: self.positions[x])
+
     def traverse(self):
         path = []
         visited = set()
@@ -86,10 +90,17 @@ def part1(data):
 
 def part2(data):
     """Part 2"""
+    rules, updates = data
     result = 0
+    for update in updates:
+        g = RuleGraph(rules, update)
+        if not g.check_topo(update):
+            corrected = g.reorder(update)
+            m = len(corrected) // 2
+            result += corrected[m]
     return result
 
 
 if __name__ == "__main__":
     print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

@@ -60,10 +60,16 @@ class Block:
         data = self.contents[:]
         if self.free > 0:
             data += ["."] * self.free
-        return "".join(map(str, data))
+        return str(data)
 
     def can_take(self, other):
         return self.free >= other.taken
+
+    @property
+    def file_id(self):
+        if self.contents:
+            return self.contents[0]
+        return "."
 
     @property
     def is_full(self):
@@ -82,7 +88,6 @@ class Disk2:
         self.nums = [int(x) for x in data]
         self.blocks = []
         self.make_blocks()
-        self.compress()
 
     def make_blocks(self):
         file_index = 0
@@ -99,23 +104,33 @@ class Disk2:
             if i >= source_index:
                 break
             if block.can_take(self.blocks[source_index]):
-                print(
-                    f"Move {self.blocks[source_index]} at {source_index} to {block} at {i}"
-                )
+                # print(
+                #     f"Move {self.blocks[source_index]} at {source_index} to {block} at {i}"
+                # )
                 block.take(self.blocks[source_index])
-                print(self)
+                # print(self)
                 return True
         return False
 
     def compress(self):
+        moved_file_ids = set()
         for i in range(len(self.blocks) - 1, 0, -1):
+            if self.blocks[i].file_id in moved_file_ids:
+                continue
             if self.blocks[i].is_full:
                 self.maybe_move(i)
+                moved_file_ids.add(self.blocks[i].file_id)
 
     @property
     def checksum(self):
-        nums = str(self).strip(".")
-        return sum(i * int(num) for i, num in enumerate(nums) if num != ".")
+        result = 0
+        i = 0
+        for block in self.blocks:
+            for file_id in block.contents:
+                result += i * file_id
+                i += 1
+            i += block.free
+        return result
 
     def __str__(self):
         return "".join(map(str, self.blocks))
@@ -132,12 +147,12 @@ def part1(data):
 def part2(data):
     """Part 2"""
     disk = Disk2(data[0])
+    disk.compress()
     # print(disk)
-    # assert str(disk) == "00992111777.44.333....5555.6666.....8888.."
     # print("-" * 10)
     return disk.checksum
 
 
 if __name__ == "__main__":
     print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

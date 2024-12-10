@@ -13,7 +13,8 @@ def get_data(filename="input.txt"):
 class Map:
     moves = [(0, 1), (1, 0), (0, -1), (-1, 0)]
 
-    def __init__(self, data):
+    def __init__(self, data, part=1):
+        self.part = part
         self.data = data
         self.w = len(data[0])
         self.h = len(data)
@@ -30,7 +31,10 @@ class Map:
     def walk_up(self, acc):
         x, y, h = acc[-1]
         if h == 9:
-            self.trails[acc[0]].add(acc[-1])
+            if self.part == 1:
+                self.trails[acc[0]].add(acc[-1])
+            else:
+                self.trails[acc[0]].add(tuple(acc))
             return
 
         # if (x, y) in self.walked:
@@ -67,10 +71,11 @@ def part1(data):
 
 def part2(data):
     """Part 2"""
-    result = 0
+    m = Map(data, part=2)
+    result = m.score
     return result
 
 
 if __name__ == "__main__":
     print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

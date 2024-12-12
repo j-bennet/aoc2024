@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from functools import lru_cache
 from os import path
 
 ROOT_DIR = path.dirname(__file__)
@@ -10,52 +10,65 @@ def get_data(filename="input.txt"):
         return f.read().splitlines()
 
 
-@dataclass
-class Stone:
-    n: int
-
-    def __repr__(self):
-        return str(self.n)
-
-    def __str__(self):
-        return self.__repr__()
-
-    def split(self):
-        digits = list(str(self.n))
+@lru_cache(maxsize=None)
+def split(n):
+    if n == 0:
+        return [1]
+    elif len(str(n)) % 2 == 0:
+        digits = str(n)
         m = len(digits) // 2
         left_digits = digits[:m]
         right_digits = digits[m:]
-        left = int("".join(left_digits))
-        right = int("".join(right_digits))
-        return [Stone(left), Stone(right)]
+        left = int(left_digits)
+        right = int(right_digits)
+        return [left, right]
+    else:
+        return [n * 2024]
 
 
-def blink(stones: list[Stone]) -> list[Stone]:
+@lru_cache(maxsize=None)
+def blink_for(stone, i):
+    if i == 0:
+        return 1
+    result = 0
+    for n in split(stone):
+        result += blink_for(n, i - 1)
+    return result
+
+
+def blink(stones: list[int]) -> list[int]:
     result = []
     for stone in stones:
-        if stone.n == 0:
-            result.append(Stone(1))
-        elif len(str(stone.n)) % 2 == 0:
-            result.extend(stone.split())
+        if stone == 0:
+            result.append(1)
+        elif len(str(stone)) % 2 == 0:
+            result.extend(split(stone))
         else:
-            result.append(Stone(stone.n * 2024))
+            result.append(stone * 2024)
     return result
 
 
 def part1(data):
     """Part 1"""
-    stones = [Stone(int(x)) for x in data[0].split()]
-    for i in range(25):
-        stones = blink(stones)
-    return len(stones)
+    stones = [int(x) for x in data[0].split()]
+    result = 0
+    for stone in stones:
+        result += blink_for(stone, 25)
+    return result
+    # for i in range(25):
+    #     stones = blink(stones)
+    # return len(stones)
 
 
 def part2(data):
     """Part 2"""
+    stones = [int(x) for x in data[0].split()]
     result = 0
+    for stone in stones:
+        result += blink_for(stone, 75)
     return result
 
 
 if __name__ == "__main__":
     print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

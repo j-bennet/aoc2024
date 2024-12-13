@@ -9,7 +9,7 @@ def get_data(filename="input.txt"):
         return f.read().splitlines()
 
 
-def parse_data(data):
+def parse_data(data, delta_prize=0):
     machines = []
 
     machine = {}
@@ -29,8 +29,8 @@ def parse_data(data):
             machine["b2"] = int(by.split("+")[1])
         elif line.startswith("Prize:"):
             px, py = line.split(": ")[1].split(", ")
-            machine["c1"] = int(px.split("=")[1])
-            machine["c2"] = int(py.split("=")[1])
+            machine["c1"] = int(px.split("=")[1]) + delta_prize
+            machine["c2"] = int(py.split("=")[1]) + delta_prize
     if machine:
         machines.append(machine)
     return machines
@@ -66,10 +66,15 @@ def part1(data):
 
 def part2(data):
     """Part 2"""
-    result = 0
-    return result
+    machines = parse_data(data, delta_prize=10000000000000)
+    costs = []
+    for machine in machines:
+        a, b = solve(machine)
+        if a is not None and b is not None:
+            costs.append(a * 3 + b)
+    return sum(costs)
 
 
 if __name__ == "__main__":
     print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

@@ -11,6 +11,7 @@ def get_data(filename="input.txt"):
 
 
 moves = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+diags = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
 
 
 class Grid:
@@ -29,11 +30,44 @@ class Grid:
     def region_perimeter(self, region_id):
         result = 0
         for i, j in self.region_dict[region_id]:
-            for dx, dy in moves:
-                ni, nj = i + dx, j + dy
+            for di, dj in moves:
+                ni, nj = i + di, j + dj
                 if (ni, nj) not in self.region_dict[region_id]:
                     result += 1
         return result
+
+    def region_corners(self, region_id):
+        # Calculates the number of corners for a given square within the shape.
+        # A corner is identified based on the diagonals and neighboring squares:
+        # - If the diagonal is not part of the shape, and both neighboring squares
+        #   (one from the row and one from the column) are either inside or outside
+        #   the shape, it is considered a corner.
+        shape = self.region_dict[region_id]
+
+        def cell_corners(r, c):
+            corners = 0
+
+            for dr, dc in diags:
+                diagonal_row = r + dr
+                diagonal_col = c + dc
+
+                # To get the neightbouring squares of the current square and its diagonals
+                # we swap the rows and the columns
+                neighbour_one = (r, diagonal_col)
+                neighbour_two = (diagonal_row, c)
+
+                if (diagonal_row, diagonal_col) in shape:
+                    # The diagonal is part of the shape. This can only be a corner piece if
+                    # the neighbouring squares aren't part of the shape.
+                    if (neighbour_one not in shape) and (neighbour_two not in shape):
+                        corners += 1
+                # XOR: True/True -> False | False/False -> False
+                elif not ((neighbour_one in shape) ^ (neighbour_two in shape)):
+                    corners += 1
+
+            return corners
+
+        return sum(cell_corners(r, c) for r, c in shape)
 
     @property
     def total_price(self):
@@ -42,6 +76,16 @@ class Grid:
             region_price = self.region_area(region_id) * self.region_perimeter(
                 region_id
             )
+            # print(f"Region {region_id}: {region_price}")
+            result += region_price
+        # print(f"Total price: {result}")
+        return result
+
+    @property
+    def total_price2(self):
+        result = 0
+        for region_id in sorted(self.region_dict.keys()):
+            region_price = self.region_area(region_id) * self.region_corners(region_id)
             # print(f"Region {region_id}: {region_price}")
             result += region_price
         # print(f"Total price: {result}")
@@ -58,8 +102,8 @@ class Grid:
         seen = {}
 
         def map_region(i, j, seen, region_id, letter):
-            for dx, dy in moves:
-                ni, nj = i + dx, j + dy
+            for di, dj in moves:
+                ni, nj = i + di, j + dj
                 if (
                     0 <= ni < self.h
                     and 0 <= nj < self.w
@@ -87,11 +131,15 @@ def part1(data):
 
 
 def part2(data):
-    """Part 2"""
-    result = 0
+    """Part 2
+    with help from:
+    https://github.com/jda5/advent-of-code-2024/blob/main/12/main.py
+    """
+    g = Grid(data)
+    result = g.total_price2
     return result
 
 
 if __name__ == "__main__":
     print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

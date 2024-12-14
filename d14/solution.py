@@ -24,10 +24,6 @@ class Robot:
         self.y += n * self.dy
         self.x = self.x % w
         self.y = self.y % h
-        if self.x < 0:
-            self.x += w
-        if self.y < 0:
-            self.y += h
 
 
 @dataclass
@@ -61,20 +57,11 @@ class Grid:
                 q4.append((r.x, r.y))
         return Counter(q1), Counter(q2), Counter(q3), Counter(q4)
 
-    def christmas_tree(self):
-        """q1 q2
-        q3 q4"""
-        q1_count = sum(self.quadrants[0].values())
-        q2_count = sum(self.quadrants[1].values())
-        q3_count = sum(self.quadrants[2].values())
-        q4_count = sum(self.quadrants[3].values())
-        return (
-            (q3_count > q1_count)
-            and (q3_count > q2_count)
-            and (q4_count > q1_count)
-            and (q4_count > q2_count)
-            and (q4_count > q1_count)
-        )
+    def no_overlaps(self):
+        for coord, val in self.robot_counts.items():
+            if val > 1:
+                return False
+        return True
 
     def safety_factor(self):
         total = 1
@@ -88,7 +75,6 @@ class Grid:
             line = ""
             for x in range(self.w):
                 if (x, y) in self.robot_counts:
-                    # line += f"{self.robot_counts[(x, y)]}"
                     line += "#"
                 else:
                     line += "."
@@ -116,19 +102,20 @@ def part1(data):
 
 def part2(data):
     """Part 2"""
-    robots = [Robot(d) for d in data]
     w = 101
     h = 103
-    for i in range(100):
+    for i in range(1, 11000):
+        robots = [Robot(d) for d in data]
         for r in robots:
             r.move(i, w=w, h=h)
         grid = Grid(w, h, robots)
-        if grid.christmas_tree():
-            print(f"Time: {i+1}")
+        if grid.no_overlaps():
+            print(f"Time: {i}")
             print(grid)
-            print("---")
+            return i
+    return -1
 
 
 if __name__ == "__main__":
-    print(f"Part 1: {part1(get_data('input.txt'))}")
+    # print(f"Part 1: {part1(get_data('input.txt'))}")
     print(f"Part 2: {part2(get_data('input.txt'))}")

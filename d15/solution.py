@@ -31,6 +31,7 @@ class Grid:
     robot: Robot
     boxes: set = field(default_factory=set)
     walls: set = field(default_factory=set)
+    directions: str = ""
 
     def move_robot(self, direction: str):
         dx, dy = MOVES[direction]
@@ -42,8 +43,8 @@ class Grid:
         def explore_direction(x: int, y: int, boxes_to_move: set):
             if (x, y) in self.boxes:
                 boxes_to_move.add((x, y))
-                explore_direction(x + dx, y + dy, boxes_to_move)
-            elif 1 < x < (self.w - 1) and 1 < y < (self.h - 1):
+                return explore_direction(x + dx, y + dy, boxes_to_move)
+            elif 0 < x < (self.w - 1) and 0 < y < (self.h - 1):
                 if (x, y) not in self.walls:
                     return (x, y)
 
@@ -52,7 +53,22 @@ class Grid:
         if not can_move:
             return False
 
-        # TODO
+        # move the boxes
+        for box in boxes_to_move:
+            self.boxes.remove(box)
+        for box in boxes_to_move:
+            self.boxes.add((box[0] + dx, box[1] + dy))
+
+        # then the robot
+        self.robot = Robot(new_x, new_y)
+        return True
+
+    def walk(self):
+        for direction in self.directions:
+            print(f"Move {direction}:")
+            result = self.move_robot(direction)
+            print(f"Moved: {result}")
+            print(self)
 
     def __str__(self):
         result = ""
@@ -73,7 +89,7 @@ class Grid:
 def parse_data(data) -> Grid:
     boxes = set()
     walls = set()
-    robot = None
+    robot = Robot(0, 0)
     for y, line in enumerate(data):
         if not line:
             break
@@ -86,13 +102,17 @@ def parse_data(data) -> Grid:
                 walls.add((x, y))
     w = len(data[0])
     h = len(data) - 2
-    return Grid(w, h, robot, boxes, walls)
+    directions = data[-1]
+    g = Grid(w, h, robot, boxes, walls, directions)
+    return g
 
 
 def part1(data):
     """Part 1"""
     g = parse_data(data)
+    print("Initial:")
     print(g)
+    g.walk()
     return 0
 
 

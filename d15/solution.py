@@ -33,6 +33,12 @@ class Grid:
     walls: set = field(default_factory=set)
     directions: str = ""
 
+    def sum_gps(self):
+        result = 0
+        for x, y in self.boxes:
+            result += x + 100 * y
+        return result
+
     def move_robot(self, direction: str):
         dx, dy = MOVES[direction]
         new_x = self.robot.x + dx
@@ -65,10 +71,10 @@ class Grid:
 
     def walk(self):
         for direction in self.directions:
-            print(f"Move {direction}:")
+            # print(f"Move {direction}:")
             result = self.move_robot(direction)
-            print(f"Moved: {result}")
-            print(self)
+            # print(f"Moved: {result}")
+            # print(self)
 
     def __str__(self):
         result = ""
@@ -90,9 +96,11 @@ def parse_data(data) -> Grid:
     boxes = set()
     walls = set()
     robot = Robot(0, 0)
+    h = 0
     for y, line in enumerate(data):
         if not line:
             break
+        h += 1
         for x, char in enumerate(line):
             if char == "@":
                 robot = Robot(x, y)
@@ -101,8 +109,7 @@ def parse_data(data) -> Grid:
             elif char == "#":
                 walls.add((x, y))
     w = len(data[0])
-    h = len(data) - 2
-    directions = data[-1]
+    directions = "".join(data[h + 1 :])
     g = Grid(w, h, robot, boxes, walls, directions)
     return g
 
@@ -110,10 +117,10 @@ def parse_data(data) -> Grid:
 def part1(data):
     """Part 1"""
     g = parse_data(data)
-    print("Initial:")
-    print(g)
+    # print("Initial:")
+    # print(g)
     g.walk()
-    return 0
+    return g.sum_gps()
 
 
 def part2(data):
@@ -123,5 +130,5 @@ def part2(data):
 
 
 if __name__ == "__main__":
-    print(f"Part 1: {part1(get_data('example.txt'))}")
+    print(f"Part 1: {part1(get_data('input.txt'))}")
     print(f"Part 2: {part2(get_data('example.txt'))}")

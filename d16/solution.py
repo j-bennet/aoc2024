@@ -38,6 +38,7 @@ class Maze:
         if self.maze[y][x] == "#":
             return float("inf")
         if self.maze[y][x] == "E":
+            visited[(x, y, facing)] = cost
             return cost
         if (x, y, facing) in visited and visited[(x, y, facing)] <= cost:
             return float("inf")
@@ -89,9 +90,7 @@ def parse_data(data):
 def part1(data):
     """Part 1"""
     m = parse_data(data)
-    print(m)
-    cost, steps, turns = m.cheapest_path()
-    print(f"Cost: {cost}, Steps: {steps}, Turns: {turns}")
+    cost = m.cheapest_path()
     return cost
 
 

@@ -131,17 +131,18 @@ class Grid2:
                 boxes_l.add((x, y))
                 boxes_r.add((x + 1, y))
                 return explore_direction(
-                    x + 1, y, boxes_l, boxes_r
+                    x + dx + 1, y + dy, boxes_l, boxes_r
                 ) and explore_direction(x + dx, y + dy, boxes_l, boxes_r)
             elif (x, y) in self.boxes_r:
                 boxes_r.add((x, y))
                 boxes_l.add((x - 1, y))
                 return explore_direction(
-                    x - 1, y, boxes_l, boxes_r
+                    x + dx - 1, y + dy, boxes_l, boxes_r
                 ) and explore_direction(x + dx, y + dy, boxes_l, boxes_r)
             elif 1 < x < (self.w - 2) and 0 < y < (self.h - 1):
                 if (x, y) not in self.walls:
                     return True
+            return False
 
         boxes_l = set()
         boxes_r = set()

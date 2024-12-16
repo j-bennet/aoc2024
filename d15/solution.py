@@ -129,16 +129,20 @@ class Grid2:
         def explore_direction(x: int, y: int, boxes_l: set, boxes_r: set):
             if (x, y) in self.boxes_l:
                 boxes_l.add((x, y))
-                boxes_r.add((x + 1, y))
-                return explore_direction(
-                    x + dx + 1, y + dy, boxes_l, boxes_r
-                ) and explore_direction(x + dx, y + dy, boxes_l, boxes_r)
+                rx, ry = x + 1, y
+                if (rx, ry) not in boxes_r:
+                    explore_r = explore_direction(rx, ry, boxes_l, boxes_r)
+                else:
+                    explore_r = True
+                return explore_r and explore_direction(x + dx, y + dy, boxes_l, boxes_r)
             elif (x, y) in self.boxes_r:
                 boxes_r.add((x, y))
-                boxes_l.add((x - 1, y))
-                return explore_direction(
-                    x + dx - 1, y + dy, boxes_l, boxes_r
-                ) and explore_direction(x + dx, y + dy, boxes_l, boxes_r)
+                lx, ly = x - 1, y
+                if (lx, ly) not in boxes_l:
+                    explore_l = explore_direction(lx, ly, boxes_l, boxes_r)
+                else:
+                    explore_l = True
+                return explore_l and explore_direction(x + dx, y + dy, boxes_l, boxes_r)
             elif 1 < x < (self.w - 2) and 0 < y < (self.h - 1):
                 if (x, y) not in self.walls:
                     return True
@@ -168,10 +172,10 @@ class Grid2:
 
     def walk(self):
         for direction in self.directions:
-            print(f"Move {direction}:")
+            # print(f"Move {direction}:")
             result = self.move_robot(direction)
-            print(f"Moved: {result}")
-            print(self)
+            # print(f"Moved: {result}")
+            # print(self)
 
     def __str__(self):
         result = ""
@@ -250,12 +254,12 @@ def part1(data):
 def part2(data):
     """Part 2"""
     g = parse_data2(data)
-    print("Initial:")
-    print(g)
+    # print("Initial:")
+    # print(g)
     g.walk()
     return g.sum_gps()
 
 
 if __name__ == "__main__":
-    # print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example3.txt'))}")
+    print(f"Part 1: {part1(get_data('input.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

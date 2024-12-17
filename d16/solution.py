@@ -1,6 +1,7 @@
 import copy
 from dataclasses import dataclass
 from os import path
+from typing import Counter, DefaultDict
 
 ROOT_DIR = path.dirname(__file__)
 
@@ -34,24 +35,32 @@ class Maze:
         return "\n".join(maze)
 
     def bfs(self):
-        """Finds the shortest path to the exit using a breadth-first search"""
-        queue = [(*self.reindeer, 0)]
+        """
+        Finds all shortest paths to the exit using a breadth-first search.
+
+        Keeps track of all paths and their costs
+        """
+        queue = [(*self.reindeer, 0, set())]
         costs = {}
         while queue:
-            x, y, facing, cost = queue.pop(0)
+            x, y, facing, cost, acc = queue.pop(0)
             if x < 0 or x >= self.w or y < 0 or y >= self.h:
                 continue
             if self.maze[y][x] == "#":
                 continue
-            if (x, y, facing) in costs and costs[(x, y, facing)] <= cost:
+            if (x, y, facing) in costs and costs[(x, y, facing)][0] < cost:
                 continue
-            costs[(x, y, facing)] = cost
+            if (x, y, facing) not in costs or costs[(x, y, facing)][0] > cost:
+                costs[(x, y, facing)] = (cost, acc | {(x, y)})
+            else:
+                costs[(x, y, facing)][1].update(acc | {(x, y)})
             queue.append(
                 (
                     x + moves[facing][0],
                     y + moves[facing][1],
                     facing,
                     cost + 1,
+                    acc | {(x, y)},
                 )
             )
             for new_facing in [clockwise[facing], counterclock[facing]]:
@@ -61,51 +70,21 @@ class Maze:
                         y + moves[new_facing][1],
                         new_facing,
                         cost + 1001,
+                        acc | {(x, y)},
                     )
                 )
-        return min(
-            costs.get((*self.target, direction), float("inf"))
-            for direction in ["^", "v", ">", "<"]
-        )
-
-    def cheapest_from(self, x, y, facing, cost, visited):
-        if x < 0 or x >= self.w or y < 0 or y >= self.h:
-            return float("inf")
-        if self.maze[y][x] == "#":
-            return float("inf")
-        if self.maze[y][x] == "E":
-            visited[(x, y, facing)] = cost
-            return cost
-        if (x, y, facing) in visited and visited[(x, y, facing)] <= cost:
-            return float("inf")
-        visited[(x, y, facing)] = cost
-        return min(
-            self.cheapest_from(
-                x + moves[facing][0],
-                y + moves[facing][1],
-                facing,
-                cost + 1,
-                visited,
-            ),
-            self.cheapest_from(
-                x + moves[clockwise[facing]][0],
-                y + moves[clockwise[facing]][1],
-                clockwise[facing],
-                cost + 1001,
-                visited,
-            ),
-            self.cheapest_from(
-                x + moves[counterclock[facing]][0],
-                y + moves[counterclock[facing]][1],
-                counterclock[facing],
-                cost + 1001,
-                visited,
-            ),
-        )
-
-    def cheapest_path(self):
-        visited = {}
-        return self.cheapest_from(*self.reindeer, 0, visited)
+        target_costs = []
+        cost_paths = DefaultDict(set)
+        cost_counter = Counter()
+        for direction in ["^", "v", ">", "<"]:
+            if (*self.target, direction) in costs:
+                cost, acc = costs[(*self.target, direction)]
+                target_costs.append(cost)
+                cost_paths[cost] |= acc
+                cost_counter[cost] += 1
+        min_cost = min(target_costs)
+        best_spots = len(cost_paths[min_cost])
+        return min_cost, best_spots
 
 
 def parse_data(data):
@@ -130,16 +109,17 @@ def parse_data(data):
 def part1(data):
     """Part 1"""
     m = parse_data(data)
-    cost = m.bfs()
+    cost, _ = m.bfs()
     return cost
 
 
 def part2(data):
     """Part 2"""
-    result = 0
-    return result
+    m = parse_data(data)
+    _, seats = m.bfs()
+    return seats
 
 
 if __name__ == "__main__":
-    print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    # print(f"Part 1: {part1(get_data('input.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from multiprocessing import Pool, cpu_count
 from os import path
 
 ROOT_DIR = path.dirname(__file__)
@@ -119,7 +120,7 @@ class Computer:
         self.C = self.A // (2 ** self.combo(operand))
         self.pointer += 2
 
-    def run_program(self):
+    def run_program(self, early_exit=False):
         self.pointer = 0
         self.output = []
         while self.pointer < (len(self.program) - 1):
@@ -142,6 +143,13 @@ class Computer:
                 self.cdv(operand)
             else:
                 raise ValueError(f"Unknown opcode {opcode}")
+
+            if early_exit and len(self.output) > 0:
+                if len(self.output) >= len(self.program):
+                    break
+                last_index = len(self.output) - 1
+                if self.output[last_index] != self.program[last_index]:
+                    break
 
 
 def parse_data(data) -> Computer:
@@ -168,12 +176,54 @@ def part1(data):
     return result
 
 
+def part2v1(data):
+    computer = parse_data(data)
+    originalB = computer.B
+    originalC = computer.C
+    target = computer.program.copy()
+
+    currentA = 1
+    while True:
+        if currentA % 1000 == 0:
+            print(".", end="", flush=True)
+        computer = Computer(currentA, originalB, originalC, target)
+        computer.run_program()
+        if computer.output == target:
+            print(f"{computer.output}")
+            print(f"{target}")
+            break
+        currentA += 1
+    return currentA
+
+
+def find_computer(args):
+    a, b, c, target = args
+    computer = Computer(a, b, c, target)
+    computer.run_program(early_exit=True)
+    if computer.output == target:
+        return a
+    return None
+
+
 def part2(data):
     """Part 2"""
-    result = 0
-    return result
+    computer = parse_data(data)
+    originalB = computer.B
+    originalC = computer.C
+    target = computer.program.copy()
+
+    A = 1
+    n_workers = cpu_count()
+    with Pool(n_workers) as pool:
+        while True:
+            args = [(i, originalB, originalC, target) for i in range(A, A + n_workers)]
+            results = pool.map(find_computer, args)
+            for result in results:
+                if result is not None:
+                    return result
+            A += n_workers
 
 
 if __name__ == "__main__":
-    print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    # print(f"Part 1: {part1(get_data('input.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

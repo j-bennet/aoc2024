@@ -1,5 +1,5 @@
+from collections import deque
 from dataclasses import dataclass, field
-from multiprocessing import Pool, cpu_count
 from os import path
 
 ROOT_DIR = path.dirname(__file__)
@@ -176,54 +176,35 @@ def part1(data):
     return result
 
 
-def part2v1(data):
-    computer = parse_data(data)
-    originalB = computer.B
-    originalC = computer.C
-    target = computer.program.copy()
-
-    currentA = 1
-    while True:
-        if currentA % 1000 == 0:
-            print(".", end="", flush=True)
-        computer = Computer(currentA, originalB, originalC, target)
-        computer.run_program()
-        if computer.output == target:
-            print(f"{computer.output}")
-            print(f"{target}")
-            break
-        currentA += 1
-    return currentA
-
-
-def find_computer(args):
-    a, b, c, target = args
-    computer = Computer(a, b, c, target)
-    computer.run_program(early_exit=True)
-    if computer.output == target:
-        return a
-    return None
-
-
 def part2(data):
-    """Part 2"""
-    computer = parse_data(data)
-    originalB = computer.B
-    originalC = computer.C
-    target = computer.program.copy()
+    """Part 2
 
-    A = 1
-    n_workers = cpu_count()
-    with Pool(n_workers) as pool:
-        while True:
-            args = [(i, originalB, originalC, target) for i in range(A, A + n_workers)]
-            results = pool.map(find_computer, args)
-            for result in results:
-                if result is not None:
-                    return result
-            A += n_workers
+    Credit to Dustin Bowers for the solution.
+    https://github.com/dustinbowers/advent-of-code/blob/main/2024/day17_chronospatial_computer/main.py
+    """
+    computer = parse_data(data)
+    b = computer.B
+    c = computer.C
+    target_output = computer.program.copy()
+    queue = deque()
+    queue.append((0, 1))
+
+    while queue:
+        a, n = queue.popleft()
+        if n > len(target_output):  # Base
+            return a
+
+        for i in range(8):
+            a2 = (a << 3) | i
+            computer = Computer(a2, b, c, target_output)
+            computer.run_program()
+
+            # save correct partial solutions
+            if computer.output == target_output[-n:]:
+                queue.append((a2, n + 1))
+    return False
 
 
 if __name__ == "__main__":
-    # print(f"Part 1: {part1(get_data('input.txt'))}")
+    print(f"Part 1: {part1(get_data('input.txt'))}")
     print(f"Part 2: {part2(get_data('input.txt'))}")

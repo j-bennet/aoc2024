@@ -47,11 +47,11 @@ class Grid:
 
 
 def parse_data(data):
-    bytes = []
+    falling_bytes = []
     for line in data:
         x, y = line.split(",")
-        bytes.append((int(x), int(y)))
-    return bytes
+        falling_bytes.append((int(x), int(y)))
+    return falling_bytes
 
 
 def part1(data):
@@ -60,18 +60,35 @@ def part1(data):
     # grid = Grid(7, 7, bytes[:12])
     # print(grid)
     # return grid.bfs((0, 0), (6, 6))
-    bytes = parse_data(data)
-    grid = Grid(71, 71, bytes[:1024])
-    print(grid)
+    falling_bytes = parse_data(data)
+    grid = Grid(71, 71, falling_bytes[:1024])
+    # print(grid)
     return grid.bfs((0, 0), (70, 70))
 
 
-def part2(data):
+def part2(data, w, h):
     """Part 2"""
-    result = 0
-    return result
+    falling_bytes = parse_data(data)
+    li = 0
+    ri = len(falling_bytes) - 1
+    curr = None
+    while li < ri:
+        curr = (li + ri) // 2
+        grid = Grid(w, h, falling_bytes[:curr])
+        if grid.bfs((0, 0), (w - 1, h - 1)) is None:
+            # print(f"[{li}\t{curr}\t{ri}]: -")
+            ri = curr
+        else:
+            # print(f"[{li}\t{curr}\t{ri}]: yes")
+            li = curr + 1
+
+    # print(f"li: {li}, ri: {ri}, curr: {curr}")
+    if curr is None:
+        return None
+    if 0 < curr < len(falling_bytes):
+        return falling_bytes[curr]
 
 
 if __name__ == "__main__":
     print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'), 71, 71)}")

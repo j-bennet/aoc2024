@@ -41,8 +41,8 @@ def parse_data(
     return g, start, finish, walls
 
 
-def connecting_walls(g: nx.Graph, walls: set[tuple[int, int]]) -> set[tuple[int, int]]:
-    connecting_walls = set()
+def connecting_walls(g: nx.Graph, walls: set[tuple[int, int]]) -> list[tuple]:
+    connecting_walls = []
     for w in walls:
         x, y = w
         connects = False
@@ -51,37 +51,53 @@ def connecting_walls(g: nx.Graph, walls: set[tuple[int, int]]) -> set[tuple[int,
         if (x, y + 1) in g.nodes and (x, y - 1) in g.nodes:
             connects = True
         if connects:
-            connecting_walls.add((x, y))
+            connecting_walls.append((x, y))
     return connecting_walls
 
 
-def shortest_path(
-    racetrack: nx.Graph, start: tuple[int, int], finish: tuple[int, int]
-) -> int:
-    p = nx.shortest_path(racetrack, start, finish)
-    return len(p) - 1
-
-
-def part1(data, target_savings: int = 1):
+def part1(data, target_savings: int = 1, cheat_length: int = 2):
     """Part 1"""
     g, start, finish, walls = parse_data(data)
-    best_path = shortest_path(g, start, finish)
+    best_path = nx.shortest_path(g, start, finish)
+    best_path_length = len(best_path) - 1
     connecting = connecting_walls(g, walls)
     counter = 0
+
+    distance_to_start = {}
+    distance_to_finish = {}
+
+    for i, node in enumerate(best_path):
+        distance_to_start[node] = i
+        distance_to_finish[node] = best_path_length - i - 1
+
     for i, (x, y) in enumerate(connecting):
-        g.add_node((x, y))
+        distances = []
         if (x + 1, y) in g.nodes and (x - 1, y) in g.nodes:
-            g.add_edge((x, y), (x - 1, y))
-            g.add_edge((x, y), (x + 1, y))
+            distances.append(
+                distance_to_start[(x + 1, y)]
+                + distance_to_finish[(x - 1, y)]
+                + cheat_length
+            )
+            distances.append(
+                distance_to_start[(x - 1, y)]
+                + distance_to_finish[(x + 1, y)]
+                + cheat_length
+            )
         if (x, y + 1) in g.nodes and (x, y - 1) in g.nodes:
-            g.add_edge((x, y), (x, y - 1))
-            g.add_edge((x, y), (x, y + 1))
-        path = shortest_path(g, start, finish)
-        saving = best_path - path
-        if saving >= target_savings:
-            # print(f"{i}/{len(connecting)} saves {saving} steps")
+            distances.append(
+                distance_to_start[(x, y + 1)]
+                + distance_to_finish[(x, y - 1)]
+                + cheat_length
+            )
+            distances.append(
+                distance_to_start[(x, y - 1)]
+                + distance_to_finish[(x, y + 1)]
+                + cheat_length
+            )
+        savings = best_path_length - min(*distances)
+        if savings >= target_savings:
+            # print(f"{i}/{len(connecting)} saves {savings} steps: {distances}")
             counter += 1
-        g.remove_node((x, y))
     return counter
 
 

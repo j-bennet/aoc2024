@@ -132,26 +132,27 @@ def directional_to_directional_options(start_sym: str, target: str) -> list[str]
     return results
 
 
+def find_shortest_option_length(start_sym: str, target: str) -> int:
+    """Find the shortest option to type on the human keypad."""
+    min_length = -1
+    for robot1 in numeric_to_directional_options(start_sym, target):
+        for robot2 in directional_to_directional_options(start_sym, robot1):
+            for human in directional_to_directional_options(start_sym, robot2):
+                if min_length == -1 or len(human) < min_length:
+                    min_length = len(human)
+    return min_length
+
+
 def part1(data):
     """Part 1"""
-    g1 = build_numeric_keypad()
-    paths1 = nx.all_pairs_shortest_path(g1)
-
-    g2 = build_directional_keypad()
-    paths2 = nx.all_pairs_shortest_path(g2)
-
-    g3 = build_directional_keypad()
-    paths3 = nx.all_pairs_shortest_path(g3)
-
-    # for k, v in paths1:
-    #     print(k)
-    #     pprint(v)
-    # print("-" * 40)
-    # for k, v in paths2:
-    #     print(k)
-    #     print(v)
-
     result = 0
+    for line in data:
+        shortest_len = find_shortest_option_length("A", line)
+        numeric_part = int(line[:-1])
+        print(
+            f"{line}: {numeric_part} * {shortest_len} = {numeric_part * shortest_len}"
+        )
+        result += numeric_part * shortest_len
     return result
 
 
@@ -162,5 +163,5 @@ def part2(data):
 
 
 if __name__ == "__main__":
-    print(f"Part 1: {part1(get_data('example.txt'))}")
+    print(f"Part 1: {part1(get_data('input.txt'))}")
     print(f"Part 2: {part2(get_data('example.txt'))}")

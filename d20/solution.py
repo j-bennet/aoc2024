@@ -1,9 +1,15 @@
+from collections import defaultdict
+from enum import Enum
+from functools import cache, cached_property
+from math import inf
 from os import path
 
-import networkx as nx
-
 ROOT_DIR = path.dirname(__file__)
-
+"""
+credit to Alexandra Jay:
+https://www.reddit.com/r/adventofcode/comments/1hicdtb/comment/m31nmc9/
+I was able to solve part 1, but had to use reddit for part 2.
+"""
 
 def get_data(filename="input.txt"):
     full_name = path.join(ROOT_DIR, filename)
@@ -11,101 +17,184 @@ def get_data(filename="input.txt"):
         return f.read().splitlines()
 
 
-def parse_data(
-    data: list[str],
-) -> tuple[nx.Graph, tuple[int, int], tuple[int, int], set[tuple[int, int]]]:
-    walls = set()
-    start = (-1, -1)
-    finish = (-1, -1)
-    g = nx.Graph()
-    for i, line in enumerate(data):
-        for j, c in enumerate(line):
-            if c == "#":
-                walls.add((j, i))
-            elif c == "S":
-                start = (j, i)
-                g.add_node((j, i))
-            elif c == "E":
-                g.add_node((j, i))
-                finish = (j, i)
-            else:
-                g.add_node((j, i))
+class Direction(Enum):
+    """A cardinal direction."""
 
-    for n in g.nodes:
-        x, y = n
-        for dx, dy in ((0, 1), (1, 0), (0, -1), (-1, 0)):
-            next_x = x + dx
-            next_y = y + dy
-            if (next_x, next_y) in g.nodes:
-                g.add_edge((x, y), (next_x, next_y))
-    return g, start, finish, walls
+    UP = 0
+    LEFT = 1
+    DOWN = 2
+    RIGHT = 3
+
+    @property
+    def horisontal(self):
+        return self in (Direction.LEFT, Direction.RIGHT)
+
+    @cached_property
+    def delta(self):
+        return ((0, -1), (1, 0), (0, 1), (-1, 0))[self.value]
+
+    def move(self, x, y):
+        """Translate the coordinates a distance of 1 in this direction."""
+        dx, dy = self.delta
+        return x + dx, y + dy
 
 
-def connecting_walls(g: nx.Graph, walls: set[tuple[int, int]]) -> list[tuple]:
-    connecting_walls = []
-    for w in walls:
-        x, y = w
-        connects = False
-        if (x + 1, y) in g.nodes and (x - 1, y) in g.nodes:
-            connects = True
-        if (x, y + 1) in g.nodes and (x, y - 1) in g.nodes:
-            connects = True
-        if connects:
-            connecting_walls.append((x, y))
-    return connecting_walls
+@cache
+def taxicab_circle(x, y, r):
+    for offset in range(r):
+        inv_offset = r - offset
+        yield x + offset, y + inv_offset
+        yield x + inv_offset, y - offset
+        yield x - offset, y - inv_offset
+        yield x - inv_offset, y + offset
+
+
+def find_tile(grid, tile):
+    for y, line in enumerate(grid):
+        for x, char in enumerate(line):
+            if char == tile:
+                return x, y
+
+    raise ValueError(f'Could not find "{tile}" in grid')
+
+
+def ScoreMap(mapping):
+    return defaultdict(lambda: inf, mapping)
+
+
+def on_grid(x, y, grid):
+    return 0 <= y < len(grid) and 0 <= x < len(grid[0])
+
+
+def at(grid, x, y):
+    return grid[y][x]
+
+
+def open_space(grid):
+    def check(coord):
+        return on_grid(*coord, grid) and at(grid, *coord) != "#"
+
+    return check
+
+
+def get_cheats(x, y, grid, cheat_time):
+    for radius in range(2, cheat_time + 1):
+        valid_cheats = filter(open_space(grid), taxicab_circle(x, y, radius))
+        yield from ((cheat, radius) for cheat in valid_cheats)
+
+
+def make_graph(grid, cheat_time):
+    valid_neighbour = open_space(grid)
+
+    start = find_tile(grid, "S")
+    end = find_tile(grid, "E")
+
+    seen = {
+        start,
+    }
+    edges = defaultdict(set)
+    cheats = dict()  # a cheat is effectively a bonus edge
+
+    todo = {
+        start,
+    }
+    while len(todo) > 0:
+        node = todo.pop()
+
+        # find this node's neighbours
+        for direction in Direction:
+            neighbour = direction.move(*node)
+            if valid_neighbour(neighbour):
+                # valid neighbour
+                edges[node].add(neighbour)
+
+                if neighbour not in seen:
+                    todo.add(neighbour)
+                    seen.add(neighbour)
+
+        # find the cheats for this node
+        cheats[node] = set(get_cheats(*node, grid, cheat_time))
+
+    return start, end, edges, cheats
+
+
+def dijkstra(start, edges):
+    discovered = {
+        start,
+    }
+    distance = ScoreMap({start: 0})
+
+    while len(discovered) > 0:
+        current_node = min(discovered, key=lambda x: distance[x])
+        discovered.remove(current_node)
+
+        for neighbour in edges[current_node]:
+            candidate_score = distance[current_node] + 1
+            if candidate_score < distance[neighbour]:
+                distance[neighbour] = candidate_score
+                discovered.add(neighbour)
+
+    return distance
+
+
+def multi_items(mapping):
+    for key, items in mapping.items():
+        for item in items:
+            yield key, *item
 
 
 def part1(data, target_savings: int = 1, cheat_length: int = 2):
     """Part 1"""
-    g, start, finish, walls = parse_data(data)
-    best_path = nx.shortest_path(g, start, finish)
-    best_path_length = len(best_path) - 1
-    connecting = connecting_walls(g, walls)
-    counter = 0
+    start, end, edges, cheats = make_graph(data, cheat_length)
+    distance_from_start = dijkstra(start, edges)
+    distance_from_end = dijkstra(end, edges)
+    target_distance = distance_from_start[end] - target_savings
 
-    distance_to_start = {}
-    distance_to_finish = {}
+    cheat_count = defaultdict(int)
+    total = 0
+    for cheat_start, cheat_end, _ in multi_items(cheats):
+        dist = (
+            distance_from_start[cheat_start]
+            + cheat_length
+            + distance_from_end[cheat_end]
+        )
+        if dist <= target_distance:
+            cheat_count[distance_from_start[end] - dist] += 1
+            total += 1
 
-    for i, node in enumerate(best_path):
-        distance_to_start[node] = i
-        distance_to_finish[node] = best_path_length - i - 1
+    # for save, number in sorted(cheat_count.items(), key=lambda x: x[0]):
+    #     if number == 1:
+    #         print(f"There is one cheat that saves {save} picoseconds")
+    #     else:
+    #         print(f"There are {number} cheats that save {save} picoseconds")
 
-    for i, (x, y) in enumerate(connecting):
-        distances = []
-        if (x + 1, y) in g.nodes and (x - 1, y) in g.nodes:
-            distances.append(
-                distance_to_start[(x + 1, y)]
-                + distance_to_finish[(x - 1, y)]
-                + cheat_length
-            )
-            distances.append(
-                distance_to_start[(x - 1, y)]
-                + distance_to_finish[(x + 1, y)]
-                + cheat_length
-            )
-        if (x, y + 1) in g.nodes and (x, y - 1) in g.nodes:
-            distances.append(
-                distance_to_start[(x, y + 1)]
-                + distance_to_finish[(x, y - 1)]
-                + cheat_length
-            )
-            distances.append(
-                distance_to_start[(x, y - 1)]
-                + distance_to_finish[(x, y + 1)]
-                + cheat_length
-            )
-        savings = best_path_length - min(*distances)
-        if savings >= target_savings:
-            # print(f"{i}/{len(connecting)} saves {savings} steps: {distances}")
-            counter += 1
-    return counter
+    return total
 
-
-def part2(data):
+def part2(data, target_savings: int = 100, cheat_length: int = 20):
     """Part 2"""
-    return 0
+    start, end, edges, cheats = make_graph(data, cheat_length)
+    distance_from_start = dijkstra(start, edges)
+    distance_from_end = dijkstra(end, edges)
+    target_distance = distance_from_start[end] - target_savings
 
+    cheat_count = defaultdict(int)
+    total = 0
+    for cheat_start, cheat_end, cheat_cost in multi_items(cheats):
+        dist = (
+            distance_from_start[cheat_start] + cheat_cost + distance_from_end[cheat_end]
+        )
+        if dist <= target_distance:
+            cheat_count[distance_from_start[end] - dist] += 1
+            total += 1
+
+    # for save, number in sorted(cheat_count.items(), key=lambda x: x[0]):
+    #     if number == 1:
+    #         print(f"There is one cheat that saves {save} picoseconds")
+    #     else:
+    #         print(f"There are {number} cheats that save {save} picoseconds")
+
+    return total
 
 if __name__ == "__main__":
     print(f"Part 1: {part1(get_data('input.txt'), 100)}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

@@ -132,6 +132,8 @@ There is one cheat that saves 64 picoseconds.
 
 You aren't sure what the conditions of the racetrack will be like, so to give yourself as many options as possible, you'll need a list of the best cheats. How many cheats would save you at least 100 picoseconds?
 
+Your puzzle answer was 1369.
+
 --- Part Two ---
 
 The programs seem perplexed by your list of cheats. Apparently, the two-picosecond cheating rule was deprecated several milliseconds ago! The latest version of the cheating rule permits a single cheat that instead lasts at most 20 picoseconds.

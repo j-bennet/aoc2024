@@ -29,7 +29,7 @@ def prune(secret: int) -> int:
     To prune the secret number, calculate the value of the secret number modulo 16777216.
     Then, the secret number becomes the result of that operation.
     """
-    return secret % 16777216
+    return secret % 2**24
 
 
 @lru_cache(maxsize=None)
@@ -47,11 +47,11 @@ def calculate_secret(secret):
     Calculate the result of multiplying the secret number by 2048. Then, mix this result into the
     secret number. Finally, prune the secret number.
     """
-    val = secret * 64
+    val = secret * 2**6
     secret = prune(mix(secret, val))
-    val = secret // 32
+    val = secret // 2**5
     secret = prune(mix(secret, val))
-    val = secret * 2048
+    val = secret * 2**11
     secret = prune(mix(secret, val))
     return secret
 
@@ -63,6 +63,22 @@ def calculate_secret_n(secret, n):
     for _ in range(n):
         secret = calculate_secret(secret)
     return secret
+
+
+def calculate_price_diff_n(secret, n):
+    """
+    Calculate the secret number after n iterations
+    """
+    prev_price = None
+    for _ in range(n):
+        secret = calculate_secret(secret)
+        curr_price = secret % 10
+        if prev_price is None:
+            curr_diff = None
+        else:
+            curr_diff = curr_price - prev_price
+        yield (curr_price, curr_diff)
+        prev_price = curr_price
 
 
 def part1(data):
@@ -78,10 +94,15 @@ def part1(data):
 
 def part2(data):
     """Part 2"""
-    result = 0
-    return result
+    initials = parse_data(data)
+    for x in initials:
+        diffs = calculate_price_diff_n(x, 100)
+        for i, (diff, price) in enumerate(diffs):
+            print(f"{i}: {diff}, {price}")
+        break
+    return 0
 
 
 if __name__ == "__main__":
-    print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    # print(f"Part 1: {part1(get_data('input.txt'))}")
+    print(f"Part 2: {part2(get_data('example2.txt'))}")

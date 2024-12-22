@@ -1,3 +1,4 @@
+from collections import Counter, deque
 from functools import lru_cache
 from os import path
 
@@ -15,21 +16,14 @@ def parse_data(data):
 
 
 @lru_cache(maxsize=None)
-def mix(secret: int, val: int) -> int:
+def mix_prune(secret: int, val: int) -> int:
     """
     To mix a value into the secret number, calculate the bitwise XOR of the given value and
     the secret number. Then, the secret number becomes the result of that operation.
-    """
-    return secret ^ val
-
-
-@lru_cache(maxsize=None)
-def prune(secret: int) -> int:
-    """
     To prune the secret number, calculate the value of the secret number modulo 16777216.
     Then, the secret number becomes the result of that operation.
     """
-    return secret % 2**24
+    return (secret ^ val) % 16777216
 
 
 @lru_cache(maxsize=None)
@@ -47,12 +41,12 @@ def calculate_secret(secret):
     Calculate the result of multiplying the secret number by 2048. Then, mix this result into the
     secret number. Finally, prune the secret number.
     """
-    val = secret * 2**6
-    secret = prune(mix(secret, val))
-    val = secret // 2**5
-    secret = prune(mix(secret, val))
-    val = secret * 2**11
-    secret = prune(mix(secret, val))
+    val = secret << 6
+    secret = mix_prune(secret, val)
+    val = secret >> 5
+    secret = mix_prune(secret, val)
+    val = secret << 11
+    secret = mix_prune(secret, val)
     return secret
 
 
@@ -65,20 +59,31 @@ def calculate_secret_n(secret, n):
     return secret
 
 
-def calculate_price_diff_n(secret, n):
+def score_sequences(number):
     """
-    Calculate the secret number after n iterations
+    Credit to Alexandra Jay
+    https://www.reddit.com/r/adventofcode/comments/1hjroap/comment/m3b1t0k/
+    https://pastebin.com/Ad4WMj1j
+    For part 2, I stored the 4 most recent deltas in a circular buffer,
+    updating a Counter with the current price if this was the first time
+    the sequence was encountered. After repeating this for each starting
+    number, the answer was simply the largest count in the sum of all
+    these counters.
     """
-    prev_price = None
-    for _ in range(n):
-        secret = calculate_secret(secret)
-        curr_price = secret % 10
-        if prev_price is None:
-            curr_diff = None
-        else:
-            curr_diff = curr_price - prev_price
-        yield (curr_price, curr_diff)
-        prev_price = curr_price
+    current_sequence = deque([], maxlen=4)
+    scores = Counter()
+
+    for n in range(2000):
+        if n >= 4:
+            sequence = tuple(current_sequence)
+            if sequence not in scores:  # only count the first appearance
+                scores[tuple(current_sequence)] = number % 10
+
+        new_number = calculate_secret(number)
+        current_sequence.append((new_number % 10) - (number % 10))
+        number = new_number
+
+    return scores
 
 
 def part1(data):
@@ -95,14 +100,14 @@ def part1(data):
 def part2(data):
     """Part 2"""
     initials = parse_data(data)
+    total_scores = Counter()
     for x in initials:
-        diffs = calculate_price_diff_n(x, 100)
-        for i, (diff, price) in enumerate(diffs):
-            print(f"{i}: {diff}, {price}")
-        break
-    return 0
-
+        total_scores += score_sequences(x)
+        # best_seq, result = total_scores.most_common(1)[0]
+        # print(f"current best: {best_seq}, {result}")
+    result = total_scores.most_common(1)[0][1]
+    return result
 
 if __name__ == "__main__":
     # print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example2.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

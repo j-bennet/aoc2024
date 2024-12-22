@@ -1,3 +1,4 @@
+from functools import lru_cache
 from os import path
 
 import networkx as nx
@@ -86,12 +87,22 @@ def edges_for_directional_path(path: list) -> str:
     return result
 
 
+@lru_cache(maxsize=None)
 def steps_for_target(start_sym: str, target: str):
     target_symbols = list(target)
     steps = [(start_sym, target_symbols[0])]
     if len(target_symbols) >= 1:
         steps.extend([(u, v) for u, v in zip(target_symbols, target_symbols[1:])])
     return steps
+
+
+@lru_cache(maxsize=None)
+def numerical_step_options(sym1: str, sym2: str) -> list[str]:
+    step_results = []
+    for possible_path in num_pad_paths[sym1][sym2]:
+        res = edges_for_numeric_path(possible_path)
+        step_results.append(res + "A")
+    return step_results
 
 
 def numeric_to_directional_options(start_sym: str, target: str) -> list[str]:
@@ -102,15 +113,21 @@ def numeric_to_directional_options(start_sym: str, target: str) -> list[str]:
     results = []
     steps = steps_for_target(start_sym, target)
     for sym1, sym2 in steps:
-        step_results = []
-        for possible_path in num_pad_paths[sym1][sym2]:
-            res = edges_for_numeric_path(possible_path)
-            step_results.append(res + "A")
+        step_results = numerical_step_options(sym1, sym2)
         if len(results) == 0:
             results = step_results
         else:
             results = [r1 + r2 for r1 in results for r2 in step_results]
     return results
+
+
+@lru_cache(maxsize=None)
+def directional_step_options(sym1: str, sym2: str) -> list[str]:
+    step_results = []
+    for possible_path in dir_pad_paths[sym1][sym2]:
+        res = edges_for_directional_path(possible_path)
+        step_results.append(res + "A")
+    return step_results
 
 
 def directional_to_directional_options(start_sym: str, target: str) -> list[str]:
@@ -121,10 +138,7 @@ def directional_to_directional_options(start_sym: str, target: str) -> list[str]
     results = []
     steps = steps_for_target(start_sym, target)
     for sym1, sym2 in steps:
-        step_results = []
-        for possible_path in dir_pad_paths[sym1][sym2]:
-            res = edges_for_directional_path(possible_path)
-            step_results.append(res + "A")
+        step_results = directional_step_options(sym1, sym2)
         if len(results) == 0:
             results = step_results
         else:
@@ -132,7 +146,20 @@ def directional_to_directional_options(start_sym: str, target: str) -> list[str]
     return results
 
 
+@lru_cache(maxsize=None)
 def find_shortest_option_length(start_sym: str, target: str) -> int:
+    """Find the shortest option to type on the human keypad."""
+    min_length = -1
+    for robot1 in numeric_to_directional_options(start_sym, target):
+        for robot2 in directional_to_directional_options(start_sym, robot1):
+            for human in directional_to_directional_options(start_sym, robot2):
+                if min_length == -1 or len(human) < min_length:
+                    min_length = len(human)
+    return min_length
+
+
+@lru_cache(maxsize=None)
+def find_shortest_option_length2(start_sym: str, target: str) -> int:
     """Find the shortest option to type on the human keypad."""
     min_length = -1
     for robot1 in numeric_to_directional_options(start_sym, target):
@@ -159,6 +186,13 @@ def part1(data):
 def part2(data):
     """Part 2"""
     result = 0
+    # for line in data:
+    #     shortest_len = find_shortest_option_length("A", line)
+    #     numeric_part = int(line[:-1])
+    #     print(
+    #         f"{line}: {numeric_part} * {shortest_len} = {numeric_part * shortest_len}"
+    #     )
+    #     result += numeric_part * shortest_len
     return result
 
 

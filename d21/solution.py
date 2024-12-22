@@ -78,20 +78,52 @@ def edges_for_numeric_path(path: list) -> str:
     return result
 
 
+def edges_for_directional_path(path: list) -> str:
+    result = ""
+    for u, v in zip(path, path[1:]):
+        edge = dir_pad.edges[u, v]
+        result += edge["dir"]
+    return result
+
+
+def steps_for_target(start_sym: str, target: str):
+    target_symbols = list(target)
+    steps = [(start_sym, target_symbols[0])]
+    if len(target_symbols) >= 1:
+        steps.extend([(u, v) for u, v in zip(target_symbols, target_symbols[1:])])
+    return steps
+
+
 def numeric_to_directional_options(start_sym: str, target: str) -> list[str]:
     """
-    What should be typed on the positional keypad
-    to produce the output of the numeric keypad.
+    What should be typed on the directional keypad
+    to produce the output on the numeric keypad.
     """
-    target_nums = list(target)
-    num_path = [(start_sym, target_nums[0])]
-    if len(target_nums) >= 1:
-        num_path.extend([(u, v) for u, v in zip(target_nums, target_nums[1:])])
     results = []
-    for num1, num2 in num_path:
+    steps = steps_for_target(start_sym, target)
+    for sym1, sym2 in steps:
         step_results = []
-        for possible_path in num_pad_paths[num1][num2]:
+        for possible_path in num_pad_paths[sym1][sym2]:
             res = edges_for_numeric_path(possible_path)
+            step_results.append(res + "A")
+        if len(results) == 0:
+            results = step_results
+        else:
+            results = [r1 + r2 for r1 in results for r2 in step_results]
+    return results
+
+
+def directional_to_directional_options(start_sym: str, target: str) -> list[str]:
+    """
+    What should be typed on the directional keypad
+    to produce the output on another directional keypad.
+    """
+    results = []
+    steps = steps_for_target(start_sym, target)
+    for sym1, sym2 in steps:
+        step_results = []
+        for possible_path in dir_pad_paths[sym1][sym2]:
+            res = edges_for_directional_path(possible_path)
             step_results.append(res + "A")
         if len(results) == 0:
             results = step_results

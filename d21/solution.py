@@ -1,14 +1,21 @@
-from functools import lru_cache
+from collections import defaultdict
+from functools import cache
 from os import path
 
 import networkx as nx
 from networkx import DiGraph
 
+"""
+Credit to:
+https://github.com/marcodelmastro/AdventOfCode2024/blob/main/Day21.ipynb
+"""
 
-def build_graph(data: list[str]) -> DiGraph:
+
+def build_graph(data: list[str]) -> tuple[DiGraph, dict]:
     graph = DiGraph()
     pos_nodes = {}
     node_pos = {}
+    moves_between_keys = {}
     for y, line in enumerate(data):
         for x, c in enumerate(line):
             if c == " ":
@@ -16,18 +23,24 @@ def build_graph(data: list[str]) -> DiGraph:
             graph.add_node(c, pos=(x, y))
             pos_nodes[(x, y)] = c
             node_pos[c] = (x, y)
-    for node in graph.nodes:
-        x, y = node_pos[node]
+    for unode in graph.nodes:
+        x, y = node_pos[unode]
         if (x + 1, y) in pos_nodes:
-            graph.add_edge(node, pos_nodes[(x + 1, y)], dir=">")
-            graph.add_edge(pos_nodes[(x + 1, y)], node, dir="<")
+            vnode = pos_nodes[(x + 1, y)]
+            graph.add_edge(unode, vnode, dir=">")
+            graph.add_edge(vnode, unode, dir="<")
+            moves_between_keys[(unode, vnode)] = ">"
+            moves_between_keys[(vnode, unode)] = "<"
         if (x, y + 1) in pos_nodes:
-            graph.add_edge(node, pos_nodes[(x, y + 1)], dir="v")
-            graph.add_edge(pos_nodes[(x, y + 1)], node, dir="^")
-    return graph
+            vnode = pos_nodes[(x, y + 1)]
+            graph.add_edge(unode, vnode, dir="v")
+            graph.add_edge(vnode, unode, dir="^")
+            moves_between_keys[(unode, vnode)] = "v"
+            moves_between_keys[(vnode, unode)] = "^"
+    return graph, moves_between_keys
 
 
-def build_numeric_keypad() -> DiGraph:
+def build_numeric_keypad() -> tuple[DiGraph, dict]:
     """
     +---+---+---+
     | 7 | 8 | 9 |
@@ -43,7 +56,7 @@ def build_numeric_keypad() -> DiGraph:
     return build_graph(data)
 
 
-def build_directional_keypad() -> DiGraph:
+def build_directional_keypad() -> tuple[DiGraph, dict]:
     """
         +---+---+
         | ^ | A |
@@ -64,107 +77,128 @@ def get_data(filename="input.txt"):
         return f.read().splitlines()
 
 
-num_pad = build_numeric_keypad()
-num_pad_paths = dict(nx.all_pairs_all_shortest_paths(num_pad))
-
-dir_pad = build_directional_keypad()
-dir_pad_paths = dict(nx.all_pairs_all_shortest_paths(dir_pad))
+num_pad, num_pad_moves = build_numeric_keypad()
+dir_pad, dir_pad_moves = build_directional_keypad()
 
 
-def edges_for_numeric_path(path: list) -> str:
-    result = ""
-    for u, v in zip(path, path[1:]):
-        edge = num_pad.edges[u, v]
-        result += edge["dir"]
-    return result
+def find_shortest_paths(G, Gmove):
+    paths = defaultdict(list)
+    for start in G.nodes():
+        for end in G.nodes():
+            if start != end:
+                for p in list(nx.all_shortest_paths(G, start, end)):
+                    m = "".join([Gmove[(p[i], p[i + 1])] for i in range(len(p) - 1)])
+                    paths[start + end].append(m)
+    return paths
 
 
-def edges_for_directional_path(path: list) -> str:
-    result = ""
-    for u, v in zip(path, path[1:]):
-        edge = dir_pad.edges[u, v]
-        result += edge["dir"]
-    return result
+# cache all possible shortest paths between two keys on a given keypath
+
+paths_on_num_pad = find_shortest_paths(num_pad, num_pad_moves)
+paths_on_dir_pad = find_shortest_paths(dir_pad, dir_pad_moves)
 
 
-@lru_cache(maxsize=None)
-def steps_for_target(start_sym: str, target: str):
-    target_symbols = list(target)
-    steps = [(start_sym, target_symbols[0])]
-    if len(target_symbols) >= 1:
-        steps.extend([(u, v) for u, v in zip(target_symbols, target_symbols[1:])])
-    return steps
+def num_paths(A, B):
+    paths = []
+    for p in nx.all_shortest_paths(num_pad, A, B):
+        seq = []
+        for i in range(len(p) - 1):
+            move = (p[i], p[i + 1])
+            seq += [num_pad_moves[move]]
+        seq += ["A"]  # press A
+        paths.append("".join(seq))
+    return paths
 
 
-@lru_cache(maxsize=None)
-def numerical_step_options(sym1: str, sym2: str) -> list[str]:
-    step_results = []
-    for possible_path in num_pad_paths[sym1][sym2]:
-        res = edges_for_numeric_path(possible_path)
-        step_results.append(res + "A")
-    return step_results
+def dir_paths(A, B):
+    paths = []
+    for p in nx.all_shortest_paths(dir_pad, A, B):
+        seq = ""
+        for i in range(len(p) - 1):
+            move = (p[i], p[i + 1])
+            seq += dir_pad_moves[move]
+        seq += "A"  # press A
+        paths.append(seq)
+    return paths
 
-
-def numeric_to_directional_options(start_sym: str, target: str) -> list[str]:
+def num_to_dir_options(target: str) -> list[str]:
     """
     What should be typed on the directional keypad
     to produce the output on the numeric keypad.
     """
-    results = []
-    steps = steps_for_target(start_sym, target)
-    for sym1, sym2 in steps:
-        step_results = numerical_step_options(sym1, sym2)
-        if len(results) == 0:
-            results = step_results
-        else:
-            results = [r1 + r2 for r1 in results for r2 in step_results]
-    return results
+    paths = []
+    _target = "A" + target
+    for i in range(len(_target) - 1):
+        paths.append(num_paths(_target[i], _target[i + 1]))
+    sequences = [""]
+    i = 0
+    while i < len(paths):
+        sequences_new = []
+        for s in sequences:
+            for p in paths[i]:
+                sequences_new.append(s + p)
+        sequences = sequences_new
+        i += 1
+    return sequences
 
 
-@lru_cache(maxsize=None)
-def directional_step_options(sym1: str, sym2: str) -> list[str]:
-    step_results = []
-    for possible_path in dir_pad_paths[sym1][sym2]:
-        res = edges_for_directional_path(possible_path)
-        step_results.append(res + "A")
-    return step_results
-
-
-def directional_to_directional_options(start_sym: str, target: str) -> list[str]:
+def dir_to_dir_options(target: str) -> list[str]:
     """
     What should be typed on the directional keypad
     to produce the output on another directional keypad.
     """
-    results = []
-    steps = steps_for_target(start_sym, target)
-    for sym1, sym2 in steps:
-        step_results = directional_step_options(sym1, sym2)
-        if len(results) == 0:
-            results = step_results
+    paths = []
+    _target = "A" + target
+    for i in range(len(_target) - 1):
+        paths.append(dir_paths(_target[i], _target[i + 1]))
+    sequences = [""]
+    i = 0
+    while i < len(paths):
+        sequences_new = []
+        for s in sequences:
+            for p in paths[i]:
+                sequences_new.append(s + p)
+        sequences = sequences_new
+        i += 1
+    return sequences
+
+
+@cache
+def minimum_sequence(level: int, target: str, nrobots: int) -> int:
+    # end of keypad sequence reached, return lenght of current sequence
+    if level == nrobots + 1:
+        return len(target)
+
+    # select dictionary of shortest paths according to level and corresponding keypad
+    if level == 0:
+        pair_paths = paths_on_num_pad
+    else:
+        pair_paths = paths_on_dir_pad
+
+    # recursively cumulate sequence lenght, only considering shortest one
+    total = 0
+    for start, end in zip("A" + target, target):
+        # adding "A" command at end of current step to press the button!
+        min_seq = [
+            minimum_sequence(level + 1, p + "A", nrobots)
+            for p in pair_paths[start + end]
+        ]
+        if min_seq:
+            total += min(min_seq)
         else:
-            results = [r1 + r2 for r1 in results for r2 in step_results]
-    return results
+            # When the same button is pressed twice in a row account for 1 step in sequence,
+            # since  min_seq would be empty (no entry in the shortest path dictionaries), but
+            # operation is happening anyway
+            total += 1
 
+    return total
 
-@lru_cache(maxsize=None)
-def find_shortest_option_length(start_sym: str, target: str) -> int:
+def find_shortest_option_length(target: str) -> int:
     """Find the shortest option to type on the human keypad."""
     min_length = -1
-    for robot1 in numeric_to_directional_options(start_sym, target):
-        for robot2 in directional_to_directional_options(start_sym, robot1):
-            for human in directional_to_directional_options(start_sym, robot2):
-                if min_length == -1 or len(human) < min_length:
-                    min_length = len(human)
-    return min_length
-
-
-@lru_cache(maxsize=None)
-def find_shortest_option_length2(start_sym: str, target: str) -> int:
-    """Find the shortest option to type on the human keypad."""
-    min_length = -1
-    for robot1 in numeric_to_directional_options(start_sym, target):
-        for robot2 in directional_to_directional_options(start_sym, robot1):
-            for human in directional_to_directional_options(start_sym, robot2):
+    for robot1 in num_to_dir_options(target):
+        for robot2 in dir_to_dir_options(robot1):
+            for human in dir_to_dir_options(robot2):
                 if min_length == -1 or len(human) < min_length:
                     min_length = len(human)
     return min_length
@@ -174,7 +208,20 @@ def part1(data):
     """Part 1"""
     result = 0
     for line in data:
-        shortest_len = find_shortest_option_length("A", line)
+        shortest_len = find_shortest_option_length(line)
+        numeric_part = int(line[:-1])
+        # print(
+        #     f"{line}: {numeric_part} * {shortest_len} = {numeric_part * shortest_len}"
+        # )
+        result += numeric_part * shortest_len
+    return result
+
+
+def part2(data, nrobots=25):
+    """Part 2"""
+    result = 0
+    for line in data:
+        shortest_len = minimum_sequence(0, line, nrobots)
         numeric_part = int(line[:-1])
         print(
             f"{line}: {numeric_part} * {shortest_len} = {numeric_part * shortest_len}"
@@ -183,19 +230,6 @@ def part1(data):
     return result
 
 
-def part2(data):
-    """Part 2"""
-    result = 0
-    # for line in data:
-    #     shortest_len = find_shortest_option_length("A", line)
-    #     numeric_part = int(line[:-1])
-    #     print(
-    #         f"{line}: {numeric_part} * {shortest_len} = {numeric_part * shortest_len}"
-    #     )
-    #     result += numeric_part * shortest_len
-    return result
-
-
 if __name__ == "__main__":
-    print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    # print(f"Part 1: {part1(get_data('input.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

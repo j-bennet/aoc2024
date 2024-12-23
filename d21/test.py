@@ -1,22 +1,22 @@
-from pprint import pprint
 
 from solution import (
-    directional_to_directional_options,
-    find_shortest_option,
-    numeric_to_directional_options,
+    dir_to_dir_options,
+    find_shortest_option_length,
+    minimum_sequence,
+    num_to_dir_options,
 )
 
-assert numeric_to_directional_options("A", "0") == ["<A"]
+assert num_to_dir_options("0") == ["<A"]
 
-assert numeric_to_directional_options("A", "02") == ["<A^A"]
+assert num_to_dir_options("02") == ["<A^A"]
 
-assert set(numeric_to_directional_options("A", "029")) == {
+assert set(num_to_dir_options("029")) == {
     "<A^A^^>A",
     "<A^A^>^A",
     "<A^A>^^A",
 }
 
-assert set(numeric_to_directional_options("A", "029A")) == {
+assert set(num_to_dir_options("029A")) == {
     "<A^A>^^AvvvA",
     "<A^A^>^AvvvA",
     "<A^A^^>AvvvA",
@@ -24,13 +24,9 @@ assert set(numeric_to_directional_options("A", "029A")) == {
 
 res = set()
 for option in ["<A^A>^^AvvvA", "<A^A^>^AvvvA", "<A^A^^>AvvvA"]:
-    res |= set(directional_to_directional_options("A", option))
+    res |= set(dir_to_dir_options(option))
 assert "v<<A>>^A<A>AvA<^AA>A<vAAA>^A" in res
 
-expected = "<vA<AA>>^AvAA<^A>A<v<A>>^AvA^A<vA>^A<v<A>^A>AAvA^A<v<A>A>^AAAvA<^A>A"
-res = find_shortest_option("A", "029A")
-pprint(res)
-pprint(expected)
-assert expected in res
-print(res.index(expected))
-print(f"Total results: {len(res)}")
+assert find_shortest_option_length("029A") == 68
+
+assert minimum_sequence(0, "029A", 2) == 68

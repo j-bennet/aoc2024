@@ -1,7 +1,7 @@
 from os import path
 
 import networkx as nx
-from networkx import Graph
+from networkx import DiGraph, Graph
 
 ROOT_DIR = path.dirname(__file__)
 
@@ -17,6 +17,15 @@ def parse_data(data) -> Graph:
     for line in data:
         comp1, comp2 = line.split("-")
         G.add_edge(comp1, comp2)
+    return G
+
+
+def parse_data2(data) -> DiGraph:
+    G = nx.DiGraph()
+    for line in data:
+        comp1, comp2 = line.split("-")
+        G.add_edge(comp1, comp2)
+        G.add_edge(comp2, comp1)
     return G
 
 
@@ -44,10 +53,13 @@ def part1(data):
 
 def part2(data):
     """Part 2"""
-    result = 0
-    return result
+    g = parse_data(data)
+    cliques = list(nx.find_cliques(g))
+    largest_clique = max(cliques, key=len)
+    password = ",".join(sorted(largest_clique))
+    return password
 
 
 if __name__ == "__main__":
     print(f"Part 1: {part1(get_data('input.txt'))}")
-    # print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")

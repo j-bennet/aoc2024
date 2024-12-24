@@ -28,7 +28,8 @@ def simulate(g, wires, gates):
             values[node] = values[operand1] ^ values[operand2]
         else:
             raise ValueError(f"Unknown operation: {operation}")
-    return values
+    outputs = {k: v for k, v in values.items() if k not in wires}
+    return values, outputs
 
 
 def calculate_output(values):
@@ -63,17 +64,18 @@ def part1(data):
     """Part 1"""
     result = 0
     g, wires, gates = parse_data(data)
-    values = simulate(g, wires, gates)
+    values, _ = simulate(g, wires, gates)
     result = calculate_output(values)
     return result
 
 
 def part2(data):
     """Part 2"""
-    result = 0
-    return result
+    g, wires, gates = parse_data(data)
+    values, outputs = simulate(g, wires, gates)
+    return 0
 
 
 if __name__ == "__main__":
-    print(f"Part 1: {part1(get_data('input.txt'))}")
+    # print(f"Part 1: {part1(get_data('input.txt'))}")
     print(f"Part 2: {part2(get_data('example.txt'))}")

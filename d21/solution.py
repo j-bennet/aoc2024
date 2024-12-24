@@ -81,13 +81,13 @@ num_pad, num_pad_moves = build_numeric_keypad()
 dir_pad, dir_pad_moves = build_directional_keypad()
 
 
-def find_shortest_paths(G, Gmove):
+def find_shortest_paths(g: DiGraph, moves: dict) -> dict:
     paths = defaultdict(list)
-    for start in G.nodes():
-        for end in G.nodes():
+    for start in g.nodes():
+        for end in g.nodes():
             if start != end:
-                for p in list(nx.all_shortest_paths(G, start, end)):
-                    m = "".join([Gmove[(p[i], p[i + 1])] for i in range(len(p) - 1)])
+                for p in list(nx.all_shortest_paths(g, start, end)):
+                    m = "".join([moves[(p[i], p[i + 1])] for i in range(len(p) - 1)])
                     paths[start + end].append(m)
     return paths
 

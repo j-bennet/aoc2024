@@ -1,10 +1,28 @@
 import copy
 from os import path
+from typing import NamedTuple
 
 import networkx as nx
 from networkx import DiGraph
 
 ROOT_DIR = path.dirname(__file__)
+
+"""
+For part 2, credit to:
+https://github.com/D3STNY27/advent-of-code-2024/blob/main/day-24/part-2.py#L20
+"""
+
+
+class Gate(NamedTuple):
+    operand1: str
+    operation: str
+    operand2: str
+
+    def __str__(self):
+        return f"{self.operand1} {self.operation} {self.operand2}"
+
+    def __repr__(self):
+        return f"{self.operand1} {self.operation} {self.operand2}"
 
 
 def get_data(filename="input.txt"):
@@ -40,6 +58,91 @@ def calculate_output(values):
     return out_value
 
 
+def get_ith_bit(number, i):
+    """Get the ith bit of a number."""
+    return (number >> i) & 1
+
+
+def find_gate(
+    x_wire: str, y_wire: str, gate_type: str, configurations: dict[str, Gate]
+) -> str | None:
+    rev_config = {v: k for k, v in configurations.items()}
+    if Gate(x_wire, gate_type, y_wire) in rev_config:
+        return rev_config[Gate(x_wire, gate_type, y_wire)]
+    if Gate(y_wire, gate_type, x_wire) in rev_config:
+        return rev_config[Gate(y_wire, gate_type, x_wire)]
+    return None
+
+
+def swap_output_wires(
+    wire_a: str, wire_b: str, configurations: dict[str, Gate]
+) -> dict[str, Gate]:
+    new_configurations = {}
+
+    for k, gate in configurations.items():
+        if k == wire_a:
+            new_configurations[wire_b] = gate
+
+        elif k == wire_b:
+            new_configurations[wire_a] = gate
+
+        else:
+            new_configurations[k] = gate
+
+    return new_configurations
+
+
+def check_parallel_adders(configurations: dict[str, Gate]) -> list[str]:
+    current_carry_wire = None
+    swaps = []
+    bit = 0
+
+    while True:
+        x_wire = f"x{bit:02d}"
+        y_wire = f"y{bit:02d}"
+        z_wire = f"z{bit:02d}"
+
+        if bit == 0:
+            current_carry_wire = find_gate(x_wire, y_wire, "AND", configurations)
+        else:
+            ab_xor_gate = find_gate(x_wire, y_wire, "XOR", configurations)
+            ab_and_gate = find_gate(x_wire, y_wire, "AND", configurations)
+
+            cin_ab_xor_gate = find_gate(
+                ab_xor_gate, current_carry_wire, "XOR", configurations
+            )
+            if cin_ab_xor_gate is None:
+                swaps.append(ab_xor_gate)
+                swaps.append(ab_and_gate)
+                configurations = swap_output_wires(
+                    ab_xor_gate, ab_and_gate, configurations
+                )
+                bit = 0
+                continue
+
+            if cin_ab_xor_gate != z_wire:
+                swaps.append(cin_ab_xor_gate)
+                swaps.append(z_wire)
+                configurations = swap_output_wires(
+                    cin_ab_xor_gate, z_wire, configurations
+                )
+                bit = 0
+                continue
+
+            cin_ab_and_gate = find_gate(
+                ab_xor_gate, current_carry_wire, "AND", configurations
+            )
+
+            carry_wire = find_gate(ab_and_gate, cin_ab_and_gate, "OR", configurations)
+            current_carry_wire = carry_wire
+
+        bit += 1
+        if bit >= 45:
+            break
+
+    return swaps
+
+
 def parse_data(data):
     wires = {}
     gates = {}
@@ -54,7 +157,7 @@ def parse_data(data):
         elif "->" in line:
             gate, output = line.split(" -> ")
             operand1, operation, operand2 = gate.split(" ")
-            gates[output] = (operand1, operation, operand2)
+            gates[output] = Gate(operand1, operation, operand2)
             g.add_edge(operand1, output)
             g.add_edge(operand2, output)
     return g, wires, gates
@@ -71,11 +174,11 @@ def part1(data):
 
 def part2(data):
     """Part 2"""
-    g, wires, gates = parse_data(data)
-    values, outputs = simulate(g, wires, gates)
-    return 0
+    _, _, gates = parse_data(data)
+    swaps = check_parallel_adders(gates)
+    return ",".join(sorted(swaps))
 
 
 if __name__ == "__main__":
-    # print(f"Part 1: {part1(get_data('input.txt'))}")
-    print(f"Part 2: {part2(get_data('example.txt'))}")
+    print(f"Part 1: {part1(get_data('input.txt'))}")
+    print(f"Part 2: {part2(get_data('input.txt'))}")
